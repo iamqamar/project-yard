@@ -23,7 +23,8 @@ Rust core for the GUI and TUI.
 - **Done** — Local SQLite index with atomic scan replacement and scan history.
 - **Done** — MIT licensing and no-telemetry, local-first product contract.
 - **In progress** — Connect real scanner/index data to the desktop UI.
-- **In progress** — Replace the TUI shell with interactive keyboard navigation.
+- **Done** — Interactive TUI with keyboard navigation, search, reload, and
+  evidence details from the shared SQLite index.
 
 **Exit criteria:** a user can index selected Ubuntu folders, inspect the same
 stored projects through a real GUI or TUI, see why each project was detected,

@@ -11,7 +11,10 @@ name = "projectyard-tui"
 path = "src/main.rs"
 
 [dependencies]
+crossterm = "0.28"
 projectyard-core = { path = "../projectyard-core" }
+projectyard-index = { path = "../projectyard-index" }
+ratatui = "0.29"
 
 [lints]
 workspace = true

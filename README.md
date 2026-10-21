@@ -22,7 +22,7 @@ cargo run -p projectyard-cli -- scan ~/Code --json
 cargo run -p projectyard-cli -- index ~/Code
 cargo run -p projectyard-cli -- index ~/Code --database /path/to/index.sqlite
 cargo run -p projectyard-cli -- detect /path/to/project
-cargo run -p projectyard-tui -- ~/Code
+cargo run -p projectyard-tui -- --database .projectyard/index.sqlite
 ```
 
 ## Detection support
@@ -36,6 +36,9 @@ ProjectYard never forces one ecosystem label.
 `.projectyard/index.sqlite` beneath the current directory so the storage
 location is explicit during the early development phase. The desktop app will
 later own the standard per-user database location and scan settings.
+
+The TUI reads that same index. Use `/` to search, `j`/`k` or arrow keys to
+select projects, `r` to reload the database, and `q` to quit.
 
 ## License
 
