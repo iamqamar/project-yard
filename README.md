@@ -9,10 +9,10 @@ remain on the machine. It contains no telemetry.
 
 ## Status
 
-The first foundation is in progress: the Rust scanner detects common project
-markers and is available through a small command-line interface. The TUI and
-desktop shells share the same product language and will be connected to the
-persisted index next.
+ProjectYard is in **v0.1 — Local foundation**. The Rust scanner and local
+SQLite index are working; connecting the stored inventory to the desktop UI and
+an interactive TUI is the current focus. See the versioned [roadmap](ROADMAP.md)
+for completed work, release criteria, and future scope.
 
 ## Current commands
 
