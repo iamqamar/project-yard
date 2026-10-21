@@ -1,0 +1,14 @@
+[package]
+name = "projectyard-index"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+projectyard-core = { path = "../projectyard-core" }
+rusqlite = { version = "0.38", features = ["bundled"] }
+
+[lints]
+workspace = true

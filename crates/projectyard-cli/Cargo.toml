@@ -1,0 +1,18 @@
+[package]
+name = "projectyard-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "projectyard"
+path = "src/main.rs"
+
+[dependencies]
+projectyard-core = { path = "../projectyard-core" }
+projectyard-index = { path = "../projectyard-index" }
+
+[lints]
+workspace = true

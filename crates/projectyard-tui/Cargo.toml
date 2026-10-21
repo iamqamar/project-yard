@@ -1,0 +1,17 @@
+[package]
+name = "projectyard-tui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "projectyard-tui"
+path = "src/main.rs"
+
+[dependencies]
+projectyard-core = { path = "../projectyard-core" }
+
+[lints]
+workspace = true
