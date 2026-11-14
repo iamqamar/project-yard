@@ -1,8 +1,8 @@
 use std::{env, path::PathBuf, process::Command};
 
 use projectyard_core::{ScanConfig, Scanner};
-use projectyard_index::{ProjectIndex, ScanSummary};
-use serde::Serialize;
+use projectyard_index::{DiscoverySettings, ProjectIndex, ScanMode, ScanSummary};
+use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
 
 #[derive(Serialize)]
@@ -23,9 +23,38 @@ struct Inventory {
     issue_count: Option<usize>,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SettingsInput {
+    scan_locations: Vec<String>,
+    excluded_directory_names: Vec<String>,
+    scan_mode: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SettingsView {
+    scan_locations: Vec<String>,
+    excluded_directory_names: Vec<String>,
+    scan_mode: String,
+}
+
 #[tauri::command]
 fn load_inventory(app: AppHandle) -> Result<Inventory, String> {
-    read_inventory(database_path(&app)?)
+    let database = database_path(&app)?;
+    let mut index = ProjectIndex::open(&database).map_err(|error| error.to_string())?;
+    let settings = index
+        .discovery_settings()
+        .map_err(|error| error.to_string())?;
+    if settings.scan_mode == ScanMode::OnLaunch && !settings.scan_locations.is_empty() {
+        index
+            .save_scan(&scan_roots(
+                &settings.scan_locations,
+                &settings.excluded_directory_names,
+            ))
+            .map_err(|error| error.to_string())?;
+    }
+    read_inventory(database)
 }
 
 #[tauri::command]
@@ -34,11 +63,55 @@ fn scan_path(app: AppHandle, path: String) -> Result<Inventory, String> {
     if !root.is_dir() {
         return Err(format!("{} is not a readable directory", root.display()));
     }
-    let result = Scanner::new(ScanConfig::for_roots([root])).scan();
     let database = database_path(&app)?;
     let mut index = ProjectIndex::open(&database).map_err(|error| error.to_string())?;
+    let settings = index
+        .discovery_settings()
+        .map_err(|error| error.to_string())?;
+    let result = scan_roots(&[root], &settings.excluded_directory_names);
     index
         .save_scan(&result)
+        .map_err(|error| error.to_string())?;
+    read_inventory(database)
+}
+
+#[tauri::command]
+fn load_settings(app: AppHandle) -> Result<SettingsView, String> {
+    let index = ProjectIndex::open(database_path(&app)?).map_err(|error| error.to_string())?;
+    index
+        .discovery_settings()
+        .map(settings_view)
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+fn save_settings(app: AppHandle, settings: SettingsInput) -> Result<SettingsView, String> {
+    let settings = validate_settings(settings)?;
+    let mut index = ProjectIndex::open(database_path(&app)?).map_err(|error| error.to_string())?;
+    index
+        .save_discovery_settings(&settings)
+        .map_err(|error| error.to_string())?;
+    Ok(settings_view(settings))
+}
+
+#[tauri::command]
+fn scan_saved_locations(app: AppHandle) -> Result<Inventory, String> {
+    let database = database_path(&app)?;
+    let mut index = ProjectIndex::open(&database).map_err(|error| error.to_string())?;
+    let settings = index
+        .discovery_settings()
+        .map_err(|error| error.to_string())?;
+    if settings.scan_locations.is_empty() {
+        return Err(
+            "Add at least one scan location in Settings before scanning saved locations."
+                .to_owned(),
+        );
+    }
+    index
+        .save_scan(&scan_roots(
+            &settings.scan_locations,
+            &settings.excluded_directory_names,
+        ))
         .map_err(|error| error.to_string())?;
     read_inventory(database)
 }
@@ -68,6 +141,64 @@ fn open_project(path: String, target: String) -> Result<String, String> {
             Ok(format!("Opened {} in Zed.", root.display()))
         }
         _ => Err("unknown project action".to_owned()),
+    }
+}
+
+fn scan_roots(roots: &[PathBuf], exclusions: &[String]) -> projectyard_core::ScanResult {
+    let mut config = ScanConfig::for_roots(roots.iter().cloned());
+    config
+        .excluded_directory_names
+        .extend(exclusions.iter().cloned());
+    Scanner::new(config).scan()
+}
+
+fn validate_settings(input: SettingsInput) -> Result<DiscoverySettings, String> {
+    let scan_locations = input
+        .scan_locations
+        .into_iter()
+        .map(|location| {
+            let root = expand_home(location.trim())?;
+            if !root.is_dir() {
+                return Err(format!("{} is not a readable directory", root.display()));
+            }
+            root.canonicalize()
+                .map_err(|error| format!("could not access {}: {error}", root.display()))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let excluded_directory_names = input
+        .excluded_directory_names
+        .into_iter()
+        .map(|name| name.trim().to_owned())
+        .filter(|name| !name.is_empty())
+        .map(|name| {
+            if name.contains('/') || name.contains('\\') {
+                Err(format!("{name} is not a folder name"))
+            } else {
+                Ok(name)
+            }
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let scan_mode = match input.scan_mode.as_str() {
+        "on_demand" => ScanMode::OnDemand,
+        "on_launch" => ScanMode::OnLaunch,
+        _ => return Err("unknown scan mode".to_owned()),
+    };
+    Ok(DiscoverySettings {
+        scan_locations,
+        excluded_directory_names,
+        scan_mode,
+    })
+}
+
+fn settings_view(settings: DiscoverySettings) -> SettingsView {
+    SettingsView {
+        scan_locations: settings
+            .scan_locations
+            .into_iter()
+            .map(|path| path.display().to_string())
+            .collect(),
+        excluded_directory_names: settings.excluded_directory_names,
+        scan_mode: settings.scan_mode.as_str().to_owned(),
     }
 }
 
@@ -126,6 +257,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             load_inventory,
             scan_path,
+            load_settings,
+            save_settings,
+            scan_saved_locations,
             open_project
         ])
         .run(tauri::generate_context!())

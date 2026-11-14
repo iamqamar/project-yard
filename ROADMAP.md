@@ -38,9 +38,10 @@ and open its location.
 **Goal:** make the first-run and recurring discovery experience useful without
 requiring a terminal.
 
-- **Planned** — Select scan locations and manage exclusion rules in settings.
-- **Planned** — On-demand scanning, launch-time scanning, and in-app interval
-  scanning.
+- **Done** — Select persistent scan locations and manage folder-name exclusion
+  rules in desktop settings.
+- **Done** — On-demand scanning and launch-time scanning for saved locations.
+- **Planned** — Configurable in-app interval scanning.
 - **Planned** — Search, filters, sorting, and project detail panels backed by
   the SQLite index.
 - **Planned** — Open a project in its folder or a configured editor; Zed is the

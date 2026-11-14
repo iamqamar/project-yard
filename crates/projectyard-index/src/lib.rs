@@ -1,6 +1,7 @@
 //! Private, local SQLite storage for ProjectYard scan results.
 
 use std::{
+    collections::BTreeSet,
     fmt, fs,
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
@@ -26,6 +27,42 @@ pub struct ScanSummary {
     pub project_count: usize,
     pub directories_visited: usize,
     pub issue_count: usize,
+}
+
+/// When ProjectYard refreshes the saved scan locations.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum ScanMode {
+    /// Scan only when the user explicitly asks ProjectYard to do so.
+    #[default]
+    OnDemand,
+    /// Refresh saved locations when the desktop app starts.
+    OnLaunch,
+}
+
+impl ScanMode {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::OnDemand => "on_demand",
+            Self::OnLaunch => "on_launch",
+        }
+    }
+
+    #[must_use]
+    pub fn from_str(value: &str) -> Self {
+        match value {
+            "on_launch" => Self::OnLaunch,
+            _ => Self::OnDemand,
+        }
+    }
+}
+
+/// Local discovery preferences shared by desktop scans and future terminal tools.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct DiscoverySettings {
+    pub scan_locations: Vec<PathBuf>,
+    pub excluded_directory_names: Vec<String>,
+    pub scan_mode: ScanMode,
 }
 
 /// An error emitted by ProjectYard's local data store.
@@ -98,6 +135,15 @@ impl ProjectIndex {
                 markers TEXT NOT NULL,
                 modified_unix_seconds INTEGER,
                 indexed_unix_seconds INTEGER NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS discovery_settings (
+                key TEXT PRIMARY KEY NOT NULL,
+                value TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS scan_locations (
+                path TEXT PRIMARY KEY NOT NULL
             );
             ",
         )?;
@@ -197,6 +243,84 @@ impl ProjectIndex {
                 other => Err(IndexError::Sql(other)),
             })
     }
+
+    /// Reads the locally stored discovery settings. New databases default to on-demand scans.
+    pub fn discovery_settings(&self) -> Result<DiscoverySettings, IndexError> {
+        let mut statement = self
+            .connection
+            .prepare("SELECT path FROM scan_locations ORDER BY path COLLATE NOCASE")?;
+        let locations = statement
+            .query_map([], |row| row.get::<_, String>(0))?
+            .collect::<Result<Vec<_>, _>>()?
+            .into_iter()
+            .map(PathBuf::from)
+            .collect();
+        let excluded_directory_names = self
+            .setting("excluded_directory_names")?
+            .map_or_else(Vec::new, |value| decode_values(&value));
+        let scan_mode = self
+            .setting("scan_mode")?
+            .map_or(ScanMode::OnDemand, |value| ScanMode::from_str(&value));
+        Ok(DiscoverySettings {
+            scan_locations: locations,
+            excluded_directory_names,
+            scan_mode,
+        })
+    }
+
+    /// Replaces the locally stored discovery settings atomically.
+    pub fn save_discovery_settings(
+        &mut self,
+        settings: &DiscoverySettings,
+    ) -> Result<(), IndexError> {
+        let locations = settings
+            .scan_locations
+            .iter()
+            .map(|path| path.to_string_lossy().into_owned())
+            .collect::<BTreeSet<_>>();
+        let exclusions = settings
+            .excluded_directory_names
+            .iter()
+            .map(|name| name.trim())
+            .filter(|name| !name.is_empty())
+            .map(str::to_owned)
+            .collect::<BTreeSet<_>>();
+        let transaction = self.connection.transaction()?;
+        transaction.execute("DELETE FROM scan_locations", [])?;
+        {
+            let mut statement =
+                transaction.prepare("INSERT INTO scan_locations (path) VALUES (?1)")?;
+            for location in locations {
+                statement.execute([location])?;
+            }
+        }
+        transaction.execute(
+            "INSERT INTO discovery_settings (key, value) VALUES ('excluded_directory_names', ?1)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            [exclusions.into_iter().collect::<Vec<_>>().join("\u{1f}")],
+        )?;
+        transaction.execute(
+            "INSERT INTO discovery_settings (key, value) VALUES ('scan_mode', ?1)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            [settings.scan_mode.as_str()],
+        )?;
+        transaction.commit()?;
+        Ok(())
+    }
+
+    fn setting(&self, key: &str) -> Result<Option<String>, IndexError> {
+        self.connection
+            .query_row(
+                "SELECT value FROM discovery_settings WHERE key = ?1",
+                [key],
+                |row| row.get(0),
+            )
+            .map(Some)
+            .or_else(|error| match error {
+                rusqlite::Error::QueryReturnedNoRows => Ok(None),
+                other => Err(IndexError::Sql(other)),
+            })
+    }
 }
 
 fn encode_kinds(project: &Project) -> String {
@@ -283,6 +407,34 @@ mod tests {
         assert_eq!(
             projects[0].kinds,
             vec![ProjectKind::Cargo, ProjectKind::Zed]
+        );
+        drop(index);
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn stores_discovery_locations_exclusions_and_mode() {
+        let path = std::env::temp_dir().join(format!(
+            "projectyard-settings-{}.sqlite",
+            std::process::id()
+        ));
+        let _ = fs::remove_file(&path);
+        let mut index = ProjectIndex::open(&path).expect("open index");
+        let settings = DiscoverySettings {
+            scan_locations: vec![PathBuf::from("/work/code"), PathBuf::from("/work/code")],
+            excluded_directory_names: vec![".cache".to_owned(), "target".to_owned()],
+            scan_mode: ScanMode::OnLaunch,
+        };
+        index
+            .save_discovery_settings(&settings)
+            .expect("save settings");
+        assert_eq!(
+            index.discovery_settings().expect("settings"),
+            DiscoverySettings {
+                scan_locations: vec![PathBuf::from("/work/code")],
+                excluded_directory_names: vec![".cache".to_owned(), "target".to_owned()],
+                scan_mode: ScanMode::OnLaunch,
+            }
         );
         drop(index);
         let _ = fs::remove_file(path);

@@ -79,6 +79,16 @@ Each indexed desktop project has a **Folder** action for the Ubuntu file
 manager and a **Zed** action. The latter uses Zed's `zed` command-line launcher
 and explains how to proceed if that launcher is unavailable.
 
+## Discovery settings
+
+The desktop **Settings** view stores discovery preferences in the same local
+SQLite database as the desktop inventory. Add the folders you want ProjectYard
+to scan, add extra folder-name exclusions, and choose either **On demand**
+(the default) or **On app launch** scanning. Use **Scan saved locations** from
+the Yard to refresh all saved folders explicitly.
+
+ProjectYard never scans a location that has not been added or entered by you.
+
 To create the Ubuntu installer after a successful native build:
 
 ```sh
