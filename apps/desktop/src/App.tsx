@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 type Project = { root: string; kinds: string[]; markers: string[] };
+type OpenTarget = "folder" | "zed";
 type Inventory = {
   database: string;
   projects: Project[];
@@ -32,6 +33,7 @@ export function App() {
     isDesktop ? "Reading your local index…" : "Preview mode — the browser never reads your folders.",
   );
   const [scanning, setScanning] = useState(false);
+  const [opening, setOpening] = useState<string | null>(null);
 
   useEffect(() => { if (isDesktop) void load(); }, []);
 
@@ -67,6 +69,19 @@ export function App() {
       setMessage(`Added ${data.projects.length} projects from ${location}.`);
     } catch (error) { setMessage(String(error)); }
     finally { setScanning(false); }
+  }
+
+  async function openProject(project: Project, target: OpenTarget) {
+    if (!isDesktop) {
+      setMessage("Opening projects works in the packaged ProjectYard app. The browser preview does not access your applications.");
+      return;
+    }
+    setOpening(`${project.root}:${target}`);
+    try {
+      const result = await invoke<string>("open_project", { path: project.root, target });
+      setMessage(result);
+    } catch (error) { setMessage(String(error)); }
+    finally { setOpening(null); }
   }
 
   return (
@@ -108,8 +123,8 @@ export function App() {
         <section className="projects" aria-labelledby="projects-heading">
           <div className="section-heading table-heading"><div><p className="kicker">The register</p><h2 id="projects-heading">Projects</h2></div><p className="index-path">{inventory.database}</p></div>
           <div className="table" role="table" aria-label="Discovered projects">
-            <div className="table-row table-head" role="row"><span>Project</span><span>Technology</span><span>Location</span><span>Found from</span></div>
-            {filtered.map((project) => <ProjectRow key={project.root} project={project} />)}
+            <div className="table-row table-head" role="row"><span>Project</span><span>Technology</span><span>Location</span><span>Found from</span><span>Open</span></div>
+            {filtered.map((project) => <ProjectRow key={project.root} project={project} opening={opening} onOpen={openProject} />)}
             {!filtered.length && <p className="empty">No projects match this view. Scan a folder or change the search.</p>}
           </div>
         </section>
@@ -122,9 +137,11 @@ function Section({ items, active }: { items: string[]; active: string }) {
   return <div className="nav-section">{items.map((item) => <button className={item === active ? "active" : ""} type="button" key={item}>{item}</button>)}</div>;
 }
 
-function ProjectRow({ project }: { project: Project }) {
+function ProjectRow({ project, opening, onOpen }: { project: Project; opening: string | null; onOpen: (project: Project, target: OpenTarget) => void }) {
   const name = project.root.split("/").filter(Boolean).at(-1) || project.root;
-  return <button className="table-row project-row" role="row" type="button" title={`Detected by ${project.markers.join(", ")}`}><span className="project-name"><i className="dot" />{name}</span><span>{project.kinds.join(" · ")}</span><span className="path">{project.root}</span><span className="marker">{project.markers.join(", ")}</span></button>;
+  const folderBusy = opening === `${project.root}:folder`;
+  const zedBusy = opening === `${project.root}:zed`;
+  return <div className="table-row project-row" role="row" title={`Detected by ${project.markers.join(", ")}`}><span className="project-name"><i className="dot" />{name}</span><span>{project.kinds.join(" · ")}</span><span className="path">{project.root}</span><span className="marker">{project.markers.join(", ")}</span><span className="project-actions"><button type="button" onClick={() => onOpen(project, "folder")} disabled={Boolean(opening)}>{folderBusy ? "Opening…" : "Folder"}</button><button type="button" onClick={() => onOpen(project, "zed")} disabled={Boolean(opening)}>{zedBusy ? "Opening…" : "Zed"}</button></span></div>;
 }
 
 function searchable(project: Project) { return `${project.root} ${project.kinds.join(" ")} ${project.markers.join(" ")}`.toLowerCase(); }

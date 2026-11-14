@@ -47,7 +47,8 @@ location is explicit during the early development phase. The desktop app stores
 its own inventory in its per-user application-data directory.
 
 The TUI reads that same index. Use `/` to search, `j`/`k` or arrow keys to
-select projects, `r` to reload the database, and `q` to quit.
+select projects, `o` to open the selected project folder, `z` to open it in
+Zed, `r` to reload the database, and `q` to quit.
 
 ## Desktop development on Ubuntu
 
@@ -73,6 +74,10 @@ Use the scan field to choose a folder, such as `~/Code`. ProjectYard scans only
 that explicit location; it never starts a whole-disk scan automatically. The
 browser preview (`npm run dev`) intentionally uses labeled sample data and
 cannot read local folders.
+
+Each indexed desktop project has a **Folder** action for the Ubuntu file
+manager and a **Zed** action. The latter uses Zed's `zed` command-line launcher
+and explains how to proceed if that launcher is unavailable.
 
 To create the Ubuntu installer after a successful native build:
 

@@ -24,8 +24,8 @@ Rust core for the GUI and TUI.
 - **Done** — MIT licensing and no-telemetry, local-first product contract.
 - **Done** — Native Tauri desktop application: selected-folder scans write to
   the per-user SQLite index and the GUI reads the same inventory.
-- **In progress** — Open a selected project location from the desktop app and
-  TUI.
+- **Done** — Open a selected project location in the Ubuntu file manager or
+  Zed from the desktop app and TUI.
 - **Done** — Interactive TUI with keyboard navigation, search, reload, and
   evidence details from the shared SQLite index.
 

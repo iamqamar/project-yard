@@ -4,6 +4,7 @@ use std::{
     env,
     io::{self, stdout},
     path::PathBuf,
+    process::Command,
     time::Duration,
 };
 
@@ -213,6 +214,8 @@ impl App {
                 KeyCode::Char('j') | KeyCode::Down => self.select_next(),
                 KeyCode::Char('k') | KeyCode::Up => self.select_previous(),
                 KeyCode::Char('r') => self.reload(),
+                KeyCode::Char('o') => self.open_selected_project("folder"),
+                KeyCode::Char('z') => self.open_selected_project("zed"),
                 _ => {}
             },
             InputMode::Search => match code {
@@ -228,6 +231,34 @@ impl App {
                 _ => {}
             },
         }
+    }
+
+    fn open_selected_project(&mut self, target: &str) {
+        let Some(root) = self.selected_project().map(|project| project.root.clone()) else {
+            self.status = "Select a project before opening it.".to_owned();
+            return;
+        };
+        if !root.is_dir() {
+            self.status = format!("{} is no longer a directory.", root.display());
+            return;
+        }
+
+        let result = match target {
+            "folder" => Command::new("xdg-open").arg(&root).spawn(),
+            "zed" => Command::new("zed").arg(&root).spawn(),
+            _ => unreachable!("only known project targets are used"),
+        };
+        self.status = match result {
+            Ok(_) => match target {
+                "folder" => format!("Opened {} in your file manager.", root.display()),
+                "zed" => format!("Opened {} in Zed.", root.display()),
+                _ => unreachable!(),
+            },
+            Err(error) if target == "zed" => format!(
+                "Could not start Zed: {error}. Install Zed's command-line launcher, then try again."
+            ),
+            Err(error) => format!("Could not open the folder: {error}"),
+        };
     }
 }
 
@@ -422,7 +453,9 @@ fn draw_details(area: Rect, frame: &mut Frame, app: &App) {
 
 fn draw_footer(area: Rect, frame: &mut Frame, app: &App) {
     let controls = match app.input_mode {
-        InputMode::Navigate => "j/k or ↑/↓ select · / search · r reload · q quit",
+        InputMode::Navigate => {
+            "j/k or ↑/↓ select · o folder · z Zed · / search · r reload · q quit"
+        }
         InputMode::Search => "type to filter · enter keep search · esc stop searching",
     };
     let line = Line::from(vec![
@@ -498,5 +531,21 @@ mod tests {
     fn truncate_keeps_short_values_and_marks_long_ones() {
         assert_eq!(truncate("yard", 8), "yard");
         assert_eq!(truncate("projectyard", 8), "project…");
+    }
+
+    #[test]
+    fn opening_without_a_selection_explains_what_to_do() {
+        let mut app = App {
+            database: PathBuf::from("test.sqlite"),
+            projects: Vec::new(),
+            scan: None,
+            table_state: TableState::default(),
+            query: String::new(),
+            input_mode: InputMode::Navigate,
+            status: String::new(),
+            should_quit: false,
+        };
+        app.open_selected_project("folder");
+        assert_eq!(app.status, "Select a project before opening it.");
     }
 }
