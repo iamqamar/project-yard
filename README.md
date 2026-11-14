@@ -40,6 +40,21 @@ later own the standard per-user database location and scan settings.
 The TUI reads that same index. Use `/` to search, `j`/`k` or arrow keys to
 select projects, `r` to reload the database, and `q` to quit.
 
+## Desktop development on Ubuntu
+
+The desktop app is a Tauri shell around the same scanner and SQLite index. Its
+scan control accepts one folder path at a time, so it never begins a broad scan
+without the user choosing a location. The development machine needs the usual
+Tauri WebKitGTK packages before building the native app:
+
+```sh
+sudo apt-get install libwebkit2gtk-4.1-dev libsoup-3.0-dev libgtk-3-dev \
+  libayatana-appindicator3-dev librsvg2-dev patchelf
+```
+
+Then run the desktop shell from `apps/desktop` with the Tauri CLI. The browser
+preview intentionally uses labeled sample data and cannot read local folders.
+
 ## License
 
 [MIT](LICENSE)

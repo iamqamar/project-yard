@@ -1,9 +1,11 @@
 [workspace]
 members = [
+  "apps/desktop/src-tauri",
   "crates/projectyard-core",
   "crates/projectyard-index",
   "crates/projectyard-cli",
   "crates/projectyard-tui",
+  "apps/desktop/src-tauri",
 ]
 resolver = "3"
 

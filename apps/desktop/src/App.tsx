@@ -1,61 +1,55 @@
-type Project = {
-  name: string;
-  kind: string;
-  path: string;
-  health: "Clean" | "Changes" | "No Git";
-  size: string;
-  marker: string;
-  color: string;
-};
+import { useEffect, useMemo, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
-const projects: Project[] = [
-  { name: "projectyard", kind: "Rust · Zed", path: "~/Dev/ProjectYard", health: "Clean", size: "14 MB", marker: "Cargo.toml", color: "blue" },
-  { name: "paper-trail", kind: "Node.js · VS Code", path: "~/Code/paper-trail", health: "Changes", size: "186 MB", marker: "package.json", color: "amber" },
-  { name: "field-notes", kind: "Flutter · Android", path: "~/Work/field-notes", health: "Clean", size: "1.2 GB", marker: "pubspec.yaml", color: "green" },
-  { name: "weather-gate", kind: "Python · uv", path: "~/Code/weather-gate", health: "No Git", size: "42 MB", marker: "uv.lock", color: "brick" },
-];
+type Project = { root: string; kinds: string[]; markers: string[] };
+type Inventory = { database: string; projects: Project[]; lastScanUnixSeconds: number | null; directoriesVisited: number | null; issueCount: number | null };
+
+const preview: Inventory = {
+  database: "Preview data — package the desktop app to scan folders",
+  lastScanUnixSeconds: null, directoriesVisited: null, issueCount: null,
+  projects: [
+    { root: "~/Dev/ProjectYard", kinds: ["Rust", "Zed", "Git"], markers: ["Cargo.toml", ".zed", ".git"] },
+    { root: "~/Code/paper-trail", kinds: ["Node.js", "VS Code"], markers: ["package.json", ".vscode"] },
+    { root: "~/Work/field-notes", kinds: ["Flutter", "Android", "Kotlin"], markers: ["pubspec.yaml", "AndroidManifest.xml"] },
+  ],
+};
+const isDesktop = "__TAURI_INTERNALS__" in window;
 
 export function App() {
-  return (
-    <main className="app-shell">
-      <aside className="sidebar">
-        <div className="brand"><span className="brand-mark" aria-hidden="true">⌁</span><span>ProjectYard</span></div>
-        <nav aria-label="Primary navigation">
-          <Section title="Places" items={["Home", "Work drive", "Archive"]} active="Home" />
-          <Section title="Filters" items={["All projects", "Technology", "Editor evidence", "Git health"]} active="All projects" />
-        </nav>
-        <button className="settings">Settings</button>
-      </aside>
-      <section className="workspace">
-        <header className="topbar">
-          <div><p className="crumb">Your local inventory</p><h1>Project Yard</h1><p className="summary">143 projects found · last complete scan 4 minutes ago</p></div>
-          <button className="scan">Scan locations</button>
-        </header>
-        <label className="search"><span aria-hidden="true">⌕</span><input placeholder="Search projects, paths, types, and editor evidence" /></label>
-        <section className="map-section" aria-labelledby="map-heading">
-          <div className="section-heading"><div><p className="crumb">Discovery map</p><h2 id="map-heading">Yard Map</h2></div><p>Area shows local disk use. Colour shows primary technology.</p></div>
-          <div className="yard-map" aria-label="Example project storage map">
-            <button className="plot plot-work"><strong>Work</strong><span>58 projects</span></button>
-            <button className="plot plot-code"><strong>Code</strong><span>44 projects</span></button>
-            <button className="plot plot-archive"><strong>Archive</strong><span>41 projects</span></button>
-          </div>
-        </section>
-        <section className="projects" aria-labelledby="projects-heading">
-          <div className="section-heading"><div><p className="crumb">Working list</p><h2 id="projects-heading">Projects</h2></div><button className="quiet-button">Sort: recently scanned</button></div>
-          <div className="table" role="table" aria-label="Discovered projects">
-            <div className="table-row table-head" role="row"><span>Project</span><span>Technology</span><span>Location</span><span>Git</span><span>Size</span></div>
-            {projects.map((project) => <ProjectRow key={project.name} project={project} />)}
-          </div>
-        </section>
-      </section>
-    </main>
-  );
-}
+  const [inventory, setInventory] = useState<Inventory>(preview);
+  const [query, setQuery] = useState("");
+  const [location, setLocation] = useState("~/Code");
+  const [message, setMessage] = useState(isDesktop ? "Loading local inventory…" : "Preview mode — no folders are read in the browser.");
+  const [scanning, setScanning] = useState(false);
+  useEffect(() => { if (isDesktop) void load(); }, []);
+  const filtered = useMemo(() => inventory.projects.filter((project) => searchable(project).includes(query.trim().toLowerCase())), [inventory.projects, query]);
+  const groups = useMemo(() => technologyGroups(filtered), [filtered]);
 
-function Section({ title, items, active }: { title: string; items: string[]; active: string }) {
-  return <div className="nav-section"><p>{title}</p>{items.map((item) => <button className={item === active ? "active" : ""} key={item}>{item}</button>)}</div>;
+  async function load() {
+    try { const data = await invoke<Inventory>("load_inventory"); setInventory(data); setMessage(data.projects.length ? "Local inventory loaded." : "Choose a folder to create your first local inventory."); }
+    catch (error) { setMessage(`Could not load the local index: ${String(error)}`); }
+  }
+  async function scan() {
+    if (!location.trim()) return;
+    if (!isDesktop) { setMessage("The packaged ProjectYard app scans the folder you enter here. The browser preview does not access your files."); return; }
+    setScanning(true); setMessage(`Scanning ${location}…`);
+    try { const data = await invoke<Inventory>("scan_path", { path: location }); setInventory(data); setMessage(`Indexed ${data.projects.length} projects from ${location}.`); }
+    catch (error) { setMessage(String(error)); }
+    finally { setScanning(false); }
+  }
+  const summary = inventory.lastScanUnixSeconds ? `${filtered.length} matching projects · scanned ${new Date(inventory.lastScanUnixSeconds * 1000).toLocaleString()}` : `${filtered.length} ${filtered.length === 1 ? "project" : "projects"} visible`;
+  return <main className="app-shell">
+    <aside className="sidebar"><div className="brand"><span className="brand-mark" aria-hidden="true">⌁</span><span>ProjectYard</span></div><nav aria-label="Inventory navigation"><Section title="Inventory" items={["All projects", "Technology map", "Detection evidence"]} active="All projects" /><Section title="Coming next" items={["Disk usage", "Git health", "Dependencies"]} active="" /></nav><p className="local-note">Everything stays on this device.</p><button className="settings" type="button">Settings</button></aside>
+    <section className="workspace">
+      <header className="topbar"><div><p className="crumb">Your local inventory</p><h1>Project Yard</h1><p className="summary">{summary}</p></div></header>
+      <section className="scan-panel" aria-label="Scan a folder"><label><span>Folder to scan</span><input value={location} onChange={(event) => setLocation(event.target.value)} placeholder="~/Code or /mnt/work" /></label><button className="scan" type="button" onClick={scan} disabled={scanning}>{scanning ? "Scanning…" : "Scan folder"}</button><p className="scan-message" role="status">{message}</p></section>
+      <label className="search"><span aria-hidden="true">⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search projects, paths, types, and editor evidence" /></label>
+      <section className="map-section" aria-labelledby="map-heading"><div className="section-heading"><div><p className="crumb">Discovery map</p><h2 id="map-heading">Technology map</h2></div><p>Tile area represents detected project count. Disk use arrives with the next milestone.</p></div><div className="yard-map" aria-label="Detected projects by technology">{groups.map((group, index) => <div className={`plot plot-${index % 3}`} key={group.name}><strong>{group.name}</strong><span>{group.count} {group.count === 1 ? "project" : "projects"}</span></div>)}</div></section>
+      <section className="projects" aria-labelledby="projects-heading"><div className="section-heading"><div><p className="crumb">Working list</p><h2 id="projects-heading">Projects</h2></div><p className="index-path">{inventory.database}</p></div><div className="table" role="table" aria-label="Discovered projects"><div className="table-row table-head" role="row"><span>Project</span><span>Technology</span><span>Location</span><span>Detected by</span></div>{filtered.map((project) => <ProjectRow key={project.root} project={project} />)}{!filtered.length && <p className="empty">No projects match this view. Scan a folder or change the search.</p>}</div></section>
+    </section>
+  </main>;
 }
-
-function ProjectRow({ project }: { project: Project }) {
-  return <button className="table-row project-row" role="row" title={`Detected by ${project.marker}`}><span className="project-name"><i className={`dot ${project.color}`} />{project.name}</span><span>{project.kind}</span><span className="path">{project.path}</span><span className={`health ${project.health.replace(" ", "-").toLowerCase()}`}>{project.health}</span><span>{project.size}</span></button>;
-}
+function Section({ title, items, active }: { title: string; items: string[]; active: string }) { return <div className="nav-section"><p>{title}</p>{items.map((item) => <button className={item === active ? "active" : ""} type="button" key={item}>{item}</button>)}</div>; }
+function ProjectRow({ project }: { project: Project }) { const name = project.root.split("/").filter(Boolean).at(-1) || project.root; return <button className="table-row project-row" role="row" type="button" title={`Detected by ${project.markers.join(", ")}`}><span className="project-name"><i className="dot blue" />{name}</span><span>{project.kinds.join(" · ")}</span><span className="path">{project.root}</span><span className="marker">{project.markers.join(", ")}</span></button>; }
+function searchable(project: Project) { return `${project.root} ${project.kinds.join(" ")} ${project.markers.join(" ")}`.toLowerCase(); }
+function technologyGroups(projects: Project[]) { const counts = new Map<string, number>(); projects.forEach((project) => { const primary = project.kinds[0] || "Other"; counts.set(primary, (counts.get(primary) || 0) + 1); }); const groups = [...counts].map(([name, count]) => ({ name, count })).sort((left, right) => right.count - left.count).slice(0, 3); return groups.length ? groups : [{ name: "No projects yet", count: 0 }]; }
