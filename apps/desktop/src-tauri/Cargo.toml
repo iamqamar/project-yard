@@ -11,13 +11,13 @@ name = "projectyard_desktop_lib"
 crate-type = ["lib", "cdylib", "staticlib"]
 
 [build-dependencies]
-tauri-build = { version = "2" }
+tauri-build = { version = "2", features = [] }
 
 [dependencies]
 projectyard-core = { path = "../../../crates/projectyard-core" }
 projectyard-index = { path = "../../../crates/projectyard-index" }
 serde = { version = "1", features = ["derive"] }
-tauri = { version = "2" }
+tauri = { version = "2", features = [] }
 
 [lints]
 workspace = true

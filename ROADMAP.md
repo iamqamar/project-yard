@@ -22,9 +22,10 @@ Rust core for the GUI and TUI.
 - **Done** — Default exclusions for dependency, build, cache, and VCS folders.
 - **Done** — Local SQLite index with atomic scan replacement and scan history.
 - **Done** — MIT licensing and no-telemetry, local-first product contract.
-- **In progress** — Desktop Tauri commands and the real scanner/index UI flow
-  are implemented; native Ubuntu packaging verification is pending WebKitGTK
-  development dependencies.
+- **Done** — Native Tauri desktop application: selected-folder scans write to
+  the per-user SQLite index and the GUI reads the same inventory.
+- **In progress** — Open a selected project location from the desktop app and
+  TUI.
 - **Done** — Interactive TUI with keyboard navigation, search, reload, and
   evidence details from the shared SQLite index.
 
@@ -37,7 +38,6 @@ and open its location.
 **Goal:** make the first-run and recurring discovery experience useful without
 requiring a terminal.
 
-- **Planned** — Tauri desktop integration for the existing React shell.
 - **Planned** — Select scan locations and manage exclusion rules in settings.
 - **Planned** — On-demand scanning, launch-time scanning, and in-app interval
   scanning.
