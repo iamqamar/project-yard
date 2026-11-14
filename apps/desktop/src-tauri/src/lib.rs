@@ -29,6 +29,7 @@ struct SettingsInput {
     scan_locations: Vec<String>,
     excluded_directory_names: Vec<String>,
     scan_mode: String,
+    scan_interval_minutes: u32,
 }
 
 #[derive(Serialize)]
@@ -37,6 +38,7 @@ struct SettingsView {
     scan_locations: Vec<String>,
     excluded_directory_names: Vec<String>,
     scan_mode: String,
+    scan_interval_minutes: u32,
 }
 
 #[tauri::command]
@@ -183,10 +185,16 @@ fn validate_settings(input: SettingsInput) -> Result<DiscoverySettings, String> 
         "on_launch" => ScanMode::OnLaunch,
         _ => return Err("unknown scan mode".to_owned()),
     };
+    let scan_interval_minutes = match input.scan_interval_minutes {
+        0 => None,
+        15 | 30 | 60 => Some(input.scan_interval_minutes),
+        _ => return Err("scan interval must be 15, 30, or 60 minutes".to_owned()),
+    };
     Ok(DiscoverySettings {
         scan_locations,
         excluded_directory_names,
         scan_mode,
+        scan_interval_minutes,
     })
 }
 
@@ -199,6 +207,7 @@ fn settings_view(settings: DiscoverySettings) -> SettingsView {
             .collect(),
         excluded_directory_names: settings.excluded_directory_names,
         scan_mode: settings.scan_mode.as_str().to_owned(),
+        scan_interval_minutes: settings.scan_interval_minutes.unwrap_or(0),
     }
 }
 

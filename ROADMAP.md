@@ -41,11 +41,11 @@ requiring a terminal.
 - **Done** — Select persistent scan locations and manage folder-name exclusion
   rules in desktop settings.
 - **Done** — On-demand scanning and launch-time scanning for saved locations.
-- **Planned** — Configurable in-app interval scanning.
-- **Done** — Search the desktop inventory by project, path, technology, or
-  editor evidence.
-- **Planned** — Technology filters, sorting, and richer project detail panels
-  backed by the SQLite index.
+- **Done** — Configurable 15-, 30-, or 60-minute scans while the app is open.
+- **Done** — Search and filter the desktop inventory by project, path,
+  technology, or editor evidence.
+- **Done** — Order projects by name, path, or primary technology and inspect
+  selected-project evidence in the GUI.
 - **Done** — Open a project in its folder or Zed from the desktop app.
 - **Planned** — Real Yard Map: disk-use treemap grouped by scan location and
   coloured by primary technology.

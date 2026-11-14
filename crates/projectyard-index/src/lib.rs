@@ -63,6 +63,8 @@ pub struct DiscoverySettings {
     pub scan_locations: Vec<PathBuf>,
     pub excluded_directory_names: Vec<String>,
     pub scan_mode: ScanMode,
+    /// Optional refresh interval while the desktop app is open, in minutes.
+    pub scan_interval_minutes: Option<u32>,
 }
 
 /// An error emitted by ProjectYard's local data store.
@@ -261,10 +263,15 @@ impl ProjectIndex {
         let scan_mode = self
             .setting("scan_mode")?
             .map_or(ScanMode::OnDemand, |value| ScanMode::from_str(&value));
+        let scan_interval_minutes = self
+            .setting("scan_interval_minutes")?
+            .and_then(|value| value.parse::<u32>().ok())
+            .filter(|minutes| *minutes > 0);
         Ok(DiscoverySettings {
             scan_locations: locations,
             excluded_directory_names,
             scan_mode,
+            scan_interval_minutes,
         })
     }
 
@@ -303,6 +310,11 @@ impl ProjectIndex {
             "INSERT INTO discovery_settings (key, value) VALUES ('scan_mode', ?1)
              ON CONFLICT(key) DO UPDATE SET value = excluded.value",
             [settings.scan_mode.as_str()],
+        )?;
+        transaction.execute(
+            "INSERT INTO discovery_settings (key, value) VALUES ('scan_interval_minutes', ?1)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            [settings.scan_interval_minutes.unwrap_or(0).to_string()],
         )?;
         transaction.commit()?;
         Ok(())
@@ -424,6 +436,7 @@ mod tests {
             scan_locations: vec![PathBuf::from("/work/code"), PathBuf::from("/work/code")],
             excluded_directory_names: vec![".cache".to_owned(), "target".to_owned()],
             scan_mode: ScanMode::OnLaunch,
+            scan_interval_minutes: Some(30),
         };
         index
             .save_discovery_settings(&settings)
@@ -434,6 +447,7 @@ mod tests {
                 scan_locations: vec![PathBuf::from("/work/code")],
                 excluded_directory_names: vec![".cache".to_owned(), "target".to_owned()],
                 scan_mode: ScanMode::OnLaunch,
+                scan_interval_minutes: Some(30),
             }
         );
         drop(index);

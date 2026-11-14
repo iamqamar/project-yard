@@ -85,10 +85,20 @@ and explains how to proceed if that launcher is unavailable.
 The desktop **Settings** view stores discovery preferences in the same local
 SQLite database as the desktop inventory. Add the folders you want ProjectYard
 to scan, add extra folder-name exclusions, and choose either **On demand**
-(the default) or **On app launch** scanning. Use **Scan saved locations** from
-the Yard to refresh all saved folders explicitly.
+(the default) or **On app launch** scanning. You can also choose a 15-, 30-,
+or 60-minute refresh interval while the desktop app is open. Use **Scan saved
+locations** from the Yard to refresh all saved folders explicitly.
 
 ProjectYard never scans a location that has not been added or entered by you.
+Interval scanning stops when the app closes.
+
+## Finding projects
+
+Use the Yard search field for project names, paths, technologies, and editor
+evidence. The register also has separate technology and editor filters and can
+be ordered by name, path, or primary technology. Select a project name to see
+its location, all detected kinds, and the markers that caused ProjectYard to
+include it.
 
 To create the Ubuntu installer after a successful native build:
 
