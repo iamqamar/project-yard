@@ -42,10 +42,11 @@ requiring a terminal.
   rules in desktop settings.
 - **Done** — On-demand scanning and launch-time scanning for saved locations.
 - **Planned** — Configurable in-app interval scanning.
-- **Planned** — Search, filters, sorting, and project detail panels backed by
-  the SQLite index.
-- **Planned** — Open a project in its folder or a configured editor; Zed is the
-  initial default.
+- **Done** — Search the desktop inventory by project, path, technology, or
+  editor evidence.
+- **Planned** — Technology filters, sorting, and richer project detail panels
+  backed by the SQLite index.
+- **Done** — Open a project in its folder or Zed from the desktop app.
 - **Planned** — Real Yard Map: disk-use treemap grouped by scan location and
   coloured by primary technology.
 
@@ -57,9 +58,12 @@ work entirely from the GUI.
 **Goal:** give terminal users a fast, comfortable alternative to the desktop
 interface—not a wall of CLI output.
 
-- **Planned** — Ratatui-based interactive project browser.
-- **Planned** — Keyboard search, filters, selection, details, and open actions.
-- **Planned** — Shared database and configuration with the GUI.
+- **Done** — Ratatui-based interactive project browser with search, selection,
+  evidence details, reload, and open actions.
+- **Planned** — Keyboard technology filters and richer terminal project
+  details.
+- **Planned** — A shared desktop database and configuration path for the GUI
+  and TUI.
 - **Planned** — Small supporting CLI surface for `scan`, `index`, `config`,
   `export`, `gui`, and `tui`.
 

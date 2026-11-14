@@ -9,16 +9,17 @@ remain on the machine. It contains no telemetry.
 
 ## Status
 
-ProjectYard is in **v0.1 — Local foundation**. The scanner, local SQLite index,
-desktop inventory, and interactive TUI are working. See the versioned
-[roadmap](ROADMAP.md) for completed work, release criteria, and future scope.
+ProjectYard is in **v0.2 — Discovery workflow**. The local foundation is
+complete; persistent discovery settings and saved-location scanning are now in
+place. See the versioned [roadmap](ROADMAP.md) for completed work, release
+criteria, and future scope.
 
 ## Interfaces
 
 - **Desktop GUI** — an Ubuntu-first native application for scanning a selected
   folder, viewing its local inventory, and seeing the Yard Map.
-- **TUI** — a fast terminal view over the same SQLite inventory, with search,
-  selection, and reload controls.
+- **TUI** — a fast terminal view over an explicit local SQLite inventory, with
+  search, selection, reload, and open controls.
 - **Supporting CLI** — focused commands for scanning, detecting a directory,
   and creating or refreshing an index. It is intentionally not the primary
   data-browsing interface.
@@ -46,9 +47,9 @@ ProjectYard never forces one ecosystem label.
 location is explicit during the early development phase. The desktop app stores
 its own inventory in its per-user application-data directory.
 
-The TUI reads that same index. Use `/` to search, `j`/`k` or arrow keys to
-select projects, `o` to open the selected project folder, `z` to open it in
-Zed, `r` to reload the database, and `q` to quit.
+The TUI reads the database path passed with `--database`. Use `/` to search,
+`j`/`k` or arrow keys to select projects, `o` to open the selected project
+folder, `z` to open it in Zed, `r` to reload the database, and `q` to quit.
 
 ## Desktop development on Ubuntu
 
@@ -96,7 +97,8 @@ npm run package:ubuntu
 ```
 
 The generated `.deb` is placed under `target/release/bundle/deb/` at the
-workspace root.
+workspace root. The optimized native binary is placed at
+`target/release/projectyard-desktop`.
 
 ## License
 
